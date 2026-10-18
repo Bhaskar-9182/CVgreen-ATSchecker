@@ -1,0 +1,135 @@
+# ===================================================================
+# ATS TECHNICAL SKILLS & KEYWORDS DICTIONARY
+# One skill/keyword per line. Lines starting with # are comments.
+# You can add or edit any skills here without changing Java code.
+# ===================================================================
+
+# Programming Languages & Runtimes
+Java
+Python
+JavaScript
+TypeScript
+C
+C++
+C#
+.NET
+.NET Core
+ASP.NET
+PHP
+Go
+Golang
+Rust
+Kotlin
+Swift
+Ruby
+Scala
+R
+
+# Web Frameworks & Libraries
+Spring
+Spring Boot
+Hibernate
+JPA
+React
+React.js
+Angular
+Vue
+Vue.js
+Next.js
+Node.js
+Express
+Django
+Flask
+FastAPI
+Laravel
+HTML
+HTML5
+CSS
+CSS3
+Tailwind CSS
+Bootstrap
+Sass
+Redux
+GraphQL
+REST API
+RESTful APIs
+Microservices
+
+# Cloud & DevOps
+AWS
+Amazon Web Services
+EC2
+S3
+Lambda
+ECS
+EKS
+RDS
+DynamoDB
+CloudFront
+Azure
+Google Cloud
+GCP
+Docker
+Kubernetes
+Terraform
+Ansible
+CI/CD
+Jenkins
+GitHub Actions
+GitLab CI
+Linux
+Unix
+Bash
+Shell Scripting
+
+# Databases & Messaging Queues
+SQL
+MySQL
+PostgreSQL
+Oracle
+SQL Server
+MongoDB
+Cassandra
+Redis
+Elasticsearch
+Kafka
+RabbitMQ
+ActiveMQ
+NoSQL
+
+# Software Engineering, Architecture & Tools
+OOP
+Object-Oriented Programming
+Design Patterns
+SOLID
+TDD
+Clean Code
+Agile
+Scrum
+Jira
+Git
+GitHub
+GitLab
+Bitbucket
+SVN
+Unit Testing
+JUnit
+Mockito
+Selenium
+Cypress
+Postman
+Swagger
+OpenAPI
+
+# Data Science & Analytics
+Machine Learning
+Deep Learning
+Data Analysis
+Data Science
+Pandas
+NumPy
+Spark
+Hadoop
+Tableau
+Power BI
+ETL

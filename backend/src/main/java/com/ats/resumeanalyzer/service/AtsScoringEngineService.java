@@ -36,33 +36,62 @@ public class AtsScoringEngineService {
             "yourselves", "will", "shall", "can", "may", "might", "must", "also", "using", "work", "role"
     ));
 
-    // Curated Industry Skill Dictionary / Taxonomy (Canonical representation)
-    private static final List<String> SKILL_TAXONOMY = Arrays.asList(
-            // Languages & Frameworks
-            "Java", "Spring", "Spring Boot", "Hibernate", "JPA", "Microservices", "REST API", "GraphQL",
-            "Python", "Django", "Flask", "FastAPI", "Pandas", "NumPy",
-            "JavaScript", "TypeScript", "React", "React.js", "Angular", "Vue", "Vue.js", "Next.js", "Node.js", "Express",
-            "HTML", "HTML5", "CSS", "CSS3", "Sass", "Tailwind CSS", "Bootstrap",
-            "C", "C++", "C#", ".NET", ".NET Core", "ASP.NET", "PHP", "Laravel", "Go", "Golang", "Rust", "Kotlin", "Swift",
-            // Cloud & DevOps
-            "AWS", "Amazon Web Services", "EC2", "S3", "Lambda", "ECS", "EKS", "RDS", "DynamoDB", "CloudFront",
-            "Azure", "Google Cloud", "GCP", "Docker", "Kubernetes", "Terraform", "Ansible", "CI/CD",
-            "Jenkins", "GitHub Actions", "GitLab CI", "Linux", "Bash", "Shell Scripting",
-            // Databases & Messaging
-            "MySQL", "PostgreSQL", "Oracle", "SQL Server", "MongoDB", "Cassandra", "Redis", "Elasticsearch",
-            "Kafka", "RabbitMQ", "ActiveMQ", "SQL", "NoSQL",
-            // Architecture & Practices
-            "OOP", "Object-Oriented Programming", "Design Patterns", "SOLID", "TDD", "Clean Code",
-            "Agile", "Scrum", "Jira", "Git", "GitHub", "GitLab", "Bitbucket",
-            "Unit Testing", "JUnit", "Mockito", "Selenium", "Cypress", "Postman", "Swagger", "OpenAPI",
-            // Data & AI / Analytics Concepts (Rule-based detection)
-            "Machine Learning", "Deep Learning", "Data Analysis", "Data Science", "ETL", "Spark", "Hadoop", "Tableau", "Power BI"
-    );
+    // Industry Skill Dictionary / Taxonomy loaded dynamically from dictionary file
+    private final List<String> skillTaxonomy = new ArrayList<>();
 
     private final RegexExtractionService regexExtractionService;
 
     public AtsScoringEngineService(RegexExtractionService regexExtractionService) {
         this.regexExtractionService = regexExtractionService;
+        loadSkillDictionary();
+    }
+
+    /**
+     * Loads the skills dictionary from resources/skills_dictionary.txt.
+     * This fulfills the faculty requirement of having a dedicated dictionary file
+     * to check whether words exist in the dictionary during keyword matching.
+     */
+    private void loadSkillDictionary() {
+        try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream("skills_dictionary.txt")) {
+            if (is != null) {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        line = line.trim();
+                        // Ignore empty lines and comments
+                        if (!line.isEmpty() && !line.startsWith("#")) {
+                            skillTaxonomy.add(line);
+                        }
+                    }
+                }
+                logger.info("Successfully loaded {} skills from skills_dictionary.txt", skillTaxonomy.size());
+            } else {
+                logger.warn("skills_dictionary.txt not found on classpath, using built-in default dictionary.");
+                loadDefaultFallbackDictionary();
+            }
+        } catch (Exception e) {
+            logger.error("Failed to load skills_dictionary.txt, falling back to default dictionary", e);
+            loadDefaultFallbackDictionary();
+        }
+    }
+
+    private void loadDefaultFallbackDictionary() {
+        skillTaxonomy.addAll(Arrays.asList(
+            "Java", "Spring", "Spring Boot", "Hibernate", "JPA", "Microservices", "REST API", "GraphQL",
+            "Python", "Django", "Flask", "FastAPI", "Pandas", "NumPy",
+            "JavaScript", "TypeScript", "React", "React.js", "Angular", "Vue", "Vue.js", "Next.js", "Node.js", "Express",
+            "HTML", "HTML5", "CSS", "CSS3", "Sass", "Tailwind CSS", "Bootstrap",
+            "C", "C++", "C#", ".NET", ".NET Core", "ASP.NET", "PHP", "Laravel", "Go", "Golang", "Rust", "Kotlin", "Swift",
+            "AWS", "Amazon Web Services", "EC2", "S3", "Lambda", "ECS", "EKS", "RDS", "DynamoDB", "CloudFront",
+            "Azure", "Google Cloud", "GCP", "Docker", "Kubernetes", "Terraform", "Ansible", "CI/CD",
+            "Jenkins", "GitHub Actions", "GitLab CI", "Linux", "Bash", "Shell Scripting",
+            "MySQL", "PostgreSQL", "Oracle", "SQL Server", "MongoDB", "Cassandra", "Redis", "Elasticsearch",
+            "Kafka", "RabbitMQ", "ActiveMQ", "SQL", "NoSQL",
+            "OOP", "Object-Oriented Programming", "Design Patterns", "SOLID", "TDD", "Clean Code",
+            "Agile", "Scrum", "Jira", "Git", "GitHub", "GitLab", "Bitbucket",
+            "Unit Testing", "JUnit", "Mockito", "Selenium", "Cypress", "Postman", "Swagger", "OpenAPI",
+            "Machine Learning", "Deep Learning", "Data Analysis", "Data Science", "ETL", "Spark", "Hadoop", "Tableau", "Power BI"
+        ));
     }
 
     /**
@@ -191,7 +220,7 @@ public class AtsScoringEngineService {
 
         String lowerText = " " + text.toLowerCase() + " ";
 
-        for (String skill : SKILL_TAXONOMY) {
+        for (String skill : skillTaxonomy) {
             String regex = "(?i)(?<![a-zA-Z0-9_])" + Pattern.quote(skill.toLowerCase()) + "(?![a-zA-Z0-9_])";
             if (Pattern.compile(regex).matcher(lowerText).find()) {
                 found.add(skill);
