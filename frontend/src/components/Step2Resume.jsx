@@ -16,6 +16,7 @@ export default function Step2Resume({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
+  const [extractedData, setExtractedData] = useState(null);
 
   const handleFileChange = async (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -26,8 +27,11 @@ export default function Step2Resume({
 
       try {
         const response = await resumeApi.uploadResume(file);
+        setExtractedData(response);
         onResumeUploaded(response);
       } catch (err) {
+        console.error("Upload error:", err);
+        setError("Failed to upload file to backend. Please check backend is running.");
         // Create demo resume structure if guest / simulated
         const simulatedResume = {
           resumeId: 101,
@@ -36,7 +40,7 @@ export default function Step2Resume({
           fileSize: file.size,
           storageType: 'S3',
           uploadedAt: new Date().toISOString(),
-          previewSnippet: 'Alex Morgan\nSenior Full-Stack & Cloud Systems Engineer\nSan Francisco, CA • alex.m@domain.com • +1 (555) 0192'
+          previewSnippet: 'Candidate Resume\n' + file.name
         };
         onResumeUploaded(simulatedResume);
       } finally {
@@ -47,6 +51,14 @@ export default function Step2Resume({
 
   const activeFileName = currentResume?.fileName || (selectedFile ? selectedFile.name : 'Alex_Morgan_Resume_2025.pdf');
   const activeFileSize = currentResume?.fileSize ? (currentResume.fileSize / 1024).toFixed(0) + ' KB' : '142 KB';
+
+  // Real extracted entities if available, else defaults
+  const candidateName = extractedData?.contactInfo?.candidateName || 'Alex Morgan';
+  const email = extractedData?.contactInfo?.email || 'alex.m@domain.com';
+  const phone = extractedData?.contactInfo?.phone || '+1 (555) 0192';
+  const skillsList = extractedData?.extractedSkills && extractedData.extractedSkills.length > 0 
+    ? extractedData.extractedSkills 
+    : ['TypeScript', 'React Native', 'CI/CD'];
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '16px 0 60px' }}>
@@ -225,15 +237,17 @@ export default function Step2Resume({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
                 <User size={16} color="#0052cc" /> Contact Identifiers
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>3 Detected</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>
+                {extractedData?.contactInfo ? 'Detected' : '3 Detected'}
+              </span>
             </div>
             <p style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
               Regex scans for applicant name, direct email format, and international phone prefixes.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="pill pill-slate">Alex Morgan</span>
-              <span className="pill pill-slate">alex.m@domain.com</span>
-              <span className="pill pill-slate">+1 (555) 0192</span>
+              <span className="pill pill-slate">{candidateName}</span>
+              <span className="pill pill-slate">{email}</span>
+              <span className="pill pill-slate">{phone}</span>
             </div>
           </div>
 
@@ -248,16 +262,20 @@ export default function Step2Resume({
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
                 <Wrench size={16} color="#0052cc" /> Skills Corpus Match
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>4,500+ Lexicon</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>
+                {skillsList.length} Found
+              </span>
             </div>
             <p style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
               Cross-references technical and interpersonal terminology against standardized taxonomy.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="pill pill-blue">TypeScript</span>
-              <span className="pill pill-blue">React Native</span>
-              <span className="pill pill-blue">CI/CD</span>
-              <span className="pill pill-slate">+14 more</span>
+              {skillsList.slice(0, 6).map((skill, idx) => (
+                <span key={idx} className="pill pill-blue">{skill}</span>
+              ))}
+              {skillsList.length > 6 && (
+                <span className="pill pill-slate">+{skillsList.length - 6} more</span>
+              )}
             </div>
           </div>
 

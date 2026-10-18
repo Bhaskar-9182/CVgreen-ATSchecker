@@ -28,10 +28,17 @@ public class ResumeController {
 
     private final ResumeService resumeService;
     private final UserService userService;
+    private final RegexExtractionService regexExtractionService;
+    private final AtsScoringEngineService atsScoringEngineService;
 
-    public ResumeController(ResumeService resumeService, UserService userService) {
+    public ResumeController(ResumeService resumeService,
+                            UserService userService,
+                            RegexExtractionService regexExtractionService,
+                            AtsScoringEngineService atsScoringEngineService) {
         this.resumeService = resumeService;
         this.userService = userService;
+        this.regexExtractionService = regexExtractionService;
+        this.atsScoringEngineService = atsScoringEngineService;
     }
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -40,6 +47,12 @@ public class ResumeController {
         try {
             User user = userDetails != null ? userService.getByUsername(userDetails.getUsername()) : null;
             Resume resume = resumeService.uploadResume(file, user);
+            String rawText = resume.getRawExtractedText();
+
+            // Extract contact info & skills for instant pre-check in UI
+            var contactInfo = regexExtractionService.extractContactInfo(rawText);
+            var extractedSkills = atsScoringEngineService.extractSkillsFromText(rawText);
+            var sections = regexExtractionService.detectSections(rawText);
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Resume uploaded and parsed successfully");
@@ -49,8 +62,11 @@ public class ResumeController {
             response.put("fileSize", resume.getFileSize());
             response.put("storageType", resume.getStorageType());
             response.put("uploadedAt", resume.getUploadedAt());
-            response.put("previewSnippet", resume.getRawExtractedText().length() > 300 ?
-                    resume.getRawExtractedText().substring(0, 300) + "..." : resume.getRawExtractedText());
+            response.put("previewSnippet", rawText != null && rawText.length() > 300 ?
+                    rawText.substring(0, 300) + "..." : rawText);
+            response.put("contactInfo", contactInfo);
+            response.put("extractedSkills", extractedSkills);
+            response.put("sections", sections);
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {

@@ -75,7 +75,11 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/health",
                                 "/h2-console/**",
-                                "/error"
+                                "/error",
+                                "/api/resumes/upload",
+                                "/api/resumes/*/analyze",
+                                "/api/resumes/*/latest-report",
+                                "/api/resumes/*/download"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
