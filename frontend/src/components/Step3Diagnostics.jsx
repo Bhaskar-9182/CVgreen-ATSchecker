@@ -13,30 +13,22 @@ export default function Step3Diagnostics({ result, onNext }) {
     );
   }
 
-  const score = result.overallScore || 78;
-  const matchedSkills = result.matchedSkills && result.matchedSkills.length > 0 
-    ? result.matchedSkills 
-    : ['React', 'TypeScript', 'Node.js', 'REST APIs', 'Git', 'PostgreSQL', 'Tailwind CSS'];
-    
-  const missingSkills = result.missingSkills && result.missingSkills.length > 0 
-    ? result.missingSkills 
-    : ['Docker', 'AWS EC2', 'GraphQL', 'Redis', 'CI/CD Pipeline'];
+  const score = result.overallScore ?? 0;
+  const matchedSkills = result.matchedSkills || [];
+  const missingSkills = result.missingSkills || [];
 
   const candidateName = result.contactInfo?.candidateName && result.contactInfo.candidateName !== 'Candidate'
-    ? result.contactInfo.candidateName 
-    : 'Alex Morgan';
-  const email = result.contactInfo?.email || 'alex.morgan@techmail.io';
-  const phone = result.contactInfo?.phone || '+1 (555) 234-5678';
+    ? result.contactInfo.candidateName
+    : 'Not detected';
+  const email = result.contactInfo?.email || 'Not detected';
+  const phone = result.contactInfo?.phone || 'Not detected';
 
-  const careerProgression = result.careerProgression && result.careerProgression.length > 0
-    ? result.careerProgression
-    : [
-        { title: 'Senior Software Engineer', description: 'Production Full-Stack Architecture', duration: '3 yrs' },
-        { title: 'Full-Stack Developer', description: 'Cloud Client Interfaces & Data APIs', duration: '2 yrs' },
-        { title: 'Software Engineering Intern', description: 'API Integration & Automated Testing', duration: '6 mos' }
-      ];
+  const careerProgression = result.careerProgression || [];
 
-  const totalExp = result.totalExperienceYears || 5.5;
+  const totalExp = result.totalExperienceYears || 0;
+  const credentials = result.credentials || [];
+  const detectedContactCount = [candidateName, email, phone]
+    .filter((value) => value !== 'Not detected').length;
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '16px 0 60px' }}>
@@ -60,7 +52,7 @@ export default function Step3Diagnostics({ result, onNext }) {
           gap: '6px'
         }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-          Parsed in 1.4s
+          Analysis complete
         </span>
       </div>
 
@@ -103,11 +95,15 @@ export default function Step3Diagnostics({ result, onNext }) {
               border: '1px solid #a7f3d0',
               marginBottom: '10px'
             }}>
-              ✓ Strong Candidate — Minor Gaps
+              {missingSkills.length
+                ? `${matchedSkills.length} matched skills — ${missingSkills.length} gaps`
+                : `${matchedSkills.length} matched skills`}
             </span>
 
             <p style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.5, marginBottom: '14px' }}>
-              Your profile satisfies primary architectural criteria. Addressing <strong>5 high-impact cloud deficiencies</strong> will bridge the gap to the 90th percentile threshold.
+              {missingSkills.length
+                ? <>Your resume matches {matchedSkills.length} target skills. {missingSkills.length} job-description skills were not found in the document.</>
+                : 'No unmatched job-description skills were reported for this document.'}
             </p>
 
             <div>
@@ -129,7 +125,7 @@ export default function Step3Diagnostics({ result, onNext }) {
             <User size={18} color="#0052cc" /> Entity Extraction
           </div>
           <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#065f46', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <CheckCircle2 size={14} color="#10b981" /> 100% Parsed
+            <CheckCircle2 size={14} color="#10b981" /> {detectedContactCount} contact fields detected
           </span>
         </div>
 
@@ -153,7 +149,7 @@ export default function Step3Diagnostics({ result, onNext }) {
                 <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>{candidateName}</div>
               </div>
             </div>
-            <CheckCircle2 size={16} color="#10b981" />
+            {candidateName !== 'Not detected' && <CheckCircle2 size={16} color="#10b981" />}
           </div>
 
           {/* Email */}
@@ -175,7 +171,7 @@ export default function Step3Diagnostics({ result, onNext }) {
                 <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>{email}</div>
               </div>
             </div>
-            <CheckCircle2 size={16} color="#10b981" />
+            {email !== 'Not detected' && <CheckCircle2 size={16} color="#10b981" />}
           </div>
 
           {/* Direct Contact */}
@@ -197,7 +193,7 @@ export default function Step3Diagnostics({ result, onNext }) {
                 <div style={{ fontSize: '0.875rem', fontWeight: '700', color: '#0f172a' }}>{phone}</div>
               </div>
             </div>
-            <CheckCircle2 size={16} color="#10b981" />
+            {phone !== 'Not detected' && <CheckCircle2 size={16} color="#10b981" />}
           </div>
         </div>
       </div>
@@ -219,7 +215,7 @@ export default function Step3Diagnostics({ result, onNext }) {
             <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#047857', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <CheckCircle2 size={14} color="#10b981" /> Matched Skills ({matchedSkills.length})
             </div>
-            <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Core Requirements Met</span>
+            <span style={{ fontSize: '0.725rem', color: '#64748b' }}>Compared with the target job description</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {matchedSkills.map((s, idx) => (
@@ -227,7 +223,6 @@ export default function Step3Diagnostics({ result, onNext }) {
                 ✓ {s}
               </span>
             ))}
-            <span className="pill pill-slate">+7 more parsed</span>
           </div>
         </div>
 
@@ -237,7 +232,6 @@ export default function Step3Diagnostics({ result, onNext }) {
             <div style={{ fontSize: '0.8rem', fontWeight: '700', color: '#b45309', display: 'flex', alignItems: 'center', gap: '5px' }}>
               ⚠ Missing High-Impact Skills ({missingSkills.length})
             </div>
-            <span style={{ fontSize: '0.725rem', fontWeight: '700', color: '#dc2626' }}>-22 ATS Points</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {missingSkills.map((s, idx) => (
@@ -256,7 +250,7 @@ export default function Step3Diagnostics({ result, onNext }) {
         </div>
 
         <div style={{ fontSize: '0.725rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '10px' }}>
-          MATCHED CAREER PROGRESSION ({totalExp} YRS TOTAL)
+          CAREER DETAILS {totalExp > 0 ? `(${totalExp} YRS TOTAL)` : ''}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
@@ -284,6 +278,9 @@ export default function Step3Diagnostics({ result, onNext }) {
               </span>
             </div>
           ))}
+          {careerProgression.length === 0 && (
+            <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No career timeline details were extracted for this report.</p>
+          )}
         </div>
 
         <div style={{ fontSize: '0.725rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '10px' }}>
@@ -303,11 +300,15 @@ export default function Step3Diagnostics({ result, onNext }) {
               <GraduationCap size={16} />
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>B.S. in Computer Science</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Accredited Institution • Graduated with Honors</div>
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
+                {credentials.length ? credentials.join(', ') : 'No credentials extracted'}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Credentials reported from the uploaded resume</div>
             </div>
           </div>
-          <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>Validated</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: '700', color: credentials.length ? '#047857' : '#64748b' }}>
+            {credentials.length ? 'Detected' : 'Not detected'}
+          </span>
         </div>
       </div>
 
@@ -326,4 +327,3 @@ export default function Step3Diagnostics({ result, onNext }) {
     </div>
   );
 }
-

@@ -61,14 +61,12 @@ public class ResumeService {
             throw new IllegalArgumentException("Only PDF and DOCX formats are supported. Received: " + extension);
         }
 
-        // 1. Store file (AWS S3 or Local fallback)
-        FileStorageService.StorageResult storageResult = fileStorageService.storeFile(file, user != null ? user.getUsername() : "guest");
-
-        // 2. Deterministic text extraction
+        // Parse first so invalid or text-free documents are not stored as successful uploads.
         byte[] fileBytes = file.getBytes();
         String extractedText = documentParserService.extractText(fileBytes, extension);
 
-        // 3. Save Resume record
+        FileStorageService.StorageResult storageResult = fileStorageService.storeFile(file, user != null ? user.getUsername() : "guest");
+
         Resume resume = new Resume();
         resume.setFileName(filename);
         resume.setFileFormat(extension);

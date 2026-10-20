@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   FileText, UploadCloud, CheckCircle2, ArrowRight, 
-  RotateCcw, User, Wrench, Briefcase, GraduationCap, Sparkles, Loader2 
+  User, Wrench, Briefcase, GraduationCap, Loader2, AlertTriangle
 } from 'lucide-react';
 import { resumeApi } from '../services/api';
 
@@ -9,56 +9,82 @@ export default function Step2Resume({
   currentResume, 
   onResumeUploaded, 
   onNext, 
-  jobTitle, 
-  jobDescription 
+  analysisError,
+  analyzing
 }) {
+  const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const fileInputRef = useRef(null);
   const [extractedData, setExtractedData] = useState(null);
 
-  const handleFileChange = async (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setError(null);
-      setUploading(true);
+  const handleSelectedFile = async (file) => {
+    if (!file || uploading) return;
 
-      try {
-        const response = await resumeApi.uploadResume(file);
-        setExtractedData(response);
-        onResumeUploaded(response);
-      } catch (err) {
-        console.error("Upload error:", err);
-        setError("Failed to upload file to backend. Please check backend is running.");
-        // Create demo resume structure if guest / simulated
-        const simulatedResume = {
-          resumeId: 101,
-          fileName: file.name,
-          fileFormat: file.name.endsWith('.docx') ? 'docx' : 'pdf',
-          fileSize: file.size,
-          storageType: 'S3',
-          uploadedAt: new Date().toISOString(),
-          previewSnippet: 'Candidate Resume\n' + file.name
-        };
-        onResumeUploaded(simulatedResume);
-      } finally {
-        setUploading(false);
-      }
+    setSelectedFile(file);
+    setExtractedData(null);
+    setError(null);
+    onResumeUploaded(null);
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!['pdf', 'docx'].includes(extension)) {
+      setError('Unsupported file type. Please upload a PDF (.pdf) or Word document (.docx).');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size exceeds the 10MB limit.');
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const response = await resumeApi.uploadResume(file);
+      setExtractedData(response);
+      onResumeUploaded(response);
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError(err.response?.data?.error || 'Upload failed. Please check the document and ensure the backend is running.');
+    } finally {
+      setUploading(false);
     }
   };
 
-  const activeFileName = currentResume?.fileName || (selectedFile ? selectedFile.name : 'Alex_Morgan_Resume_2025.pdf');
-  const activeFileSize = currentResume?.fileSize ? (currentResume.fileSize / 1024).toFixed(0) + ' KB' : '142 KB';
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    handleSelectedFile(file);
+  };
 
-  // Real extracted entities if available, else defaults
-  const candidateName = extractedData?.contactInfo?.candidateName || 'Alex Morgan';
-  const email = extractedData?.contactInfo?.email || 'alex.m@domain.com';
-  const phone = extractedData?.contactInfo?.phone || '+1 (555) 0192';
-  const skillsList = extractedData?.extractedSkills && extractedData.extractedSkills.length > 0 
-    ? extractedData.extractedSkills 
-    : ['TypeScript', 'React Native', 'CI/CD'];
+  const handleDrag = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.type === 'dragenter' || event.type === 'dragover') {
+      setDragActive(true);
+    } else if (event.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setDragActive(false);
+    handleSelectedFile(event.dataTransfer.files?.[0]);
+  };
+
+  const activeFileName = currentResume?.fileName || (selectedFile ? selectedFile.name : 'No resume uploaded');
+  const activeFileSize = currentResume?.fileSize ? (currentResume.fileSize / 1024).toFixed(0) + ' KB' : '';
+
+  const resumeData = extractedData || currentResume;
+  const candidateName = resumeData?.contactInfo?.candidateName || 'Not detected';
+  const email = resumeData?.contactInfo?.email || 'Not detected';
+  const phone = resumeData?.contactInfo?.phone || 'Not detected';
+  const skillsList = resumeData?.extractedSkills || [];
+  const presentSections = Object.entries(resumeData?.sections || {})
+    .filter(([, present]) => present)
+    .map(([section]) => section);
 
   return (
     <div style={{ maxWidth: '1080px', margin: '0 auto', padding: '16px 0 60px' }}>
@@ -121,9 +147,11 @@ export default function Step2Resume({
                 {activeFileName}
               </div>
               <div style={{ fontSize: '0.775rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                <span>{activeFileSize}</span>
+                {activeFileSize && <><span>{activeFileSize}</span><span>•</span></>}
                 <span>•</span>
-                <span style={{ color: '#047857', fontWeight: '600' }}>Ready for Extraction</span>
+                <span style={{ color: currentResume ? '#047857' : '#64748b', fontWeight: '600' }}>
+                  {currentResume ? 'Text extracted successfully' : 'Upload a document to extract its contents'}
+                </span>
               </div>
             </div>
           </div>
@@ -132,23 +160,24 @@ export default function Step2Resume({
             <span style={{
               fontSize: '0.75rem',
               fontWeight: '700',
-              color: '#065f46',
-              background: '#ecfdf5',
+              color: currentResume ? '#065f46' : '#64748b',
+              background: currentResume ? '#ecfdf5' : '#f1f5f9',
               padding: '4px 12px',
               borderRadius: '9999px',
-              border: '1px solid #a7f3d0',
+              border: `1px solid ${currentResume ? '#a7f3d0' : '#cbd5e1'}`,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px'
             }}>
-              <CheckCircle2 size={14} color="#10b981" /> Verified Format
+              {currentResume ? <><CheckCircle2 size={14} color="#10b981" /> Text extracted</> : 'Awaiting upload'}
             </span>
 
             <button
               type="button"
+              disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
               className="btn-cv-secondary"
-              style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+              style={{ padding: '6px 14px', fontSize: '0.8rem', opacity: uploading ? 0.6 : 1 }}
             >
               ⇄ Change
             </button>
@@ -167,13 +196,17 @@ export default function Step2Resume({
 
       {/* Drag and drop banner */}
       <div
-        onClick={() => fileInputRef.current?.click()}
+        onDragEnter={handleDrag}
+        onDragOver={handleDrag}
+        onDragLeave={handleDrag}
+        onDrop={handleDrop}
+        onClick={() => !uploading && fileInputRef.current?.click()}
         style={{
-          border: '2px dashed #cbd5e1',
+          border: `2px dashed ${dragActive ? '#0877ff' : '#cbd5e1'}`,
           borderRadius: '14px',
           padding: '36px 20px',
           textAlign: 'center',
-          background: '#f8fafc',
+          background: dragActive ? 'rgba(8, 119, 255, 0.08)' : '#f8fafc',
           cursor: 'pointer',
           marginBottom: '24px',
           transition: 'all 0.15s ease'
@@ -208,6 +241,24 @@ export default function Step2Resume({
         </div>
       </div>
 
+      {error && (
+        <div role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#b91c1c', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '18px', fontSize: '0.85rem' }}>
+          <AlertTriangle size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {currentResume?.previewSnippet && (
+        <div className="cv-card" style={{ padding: '16px 20px', marginBottom: '18px' }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '8px' }}>
+            Extracted text preview
+          </div>
+          <pre style={{ margin: 0, color: '#334155', fontSize: '0.8rem', lineHeight: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            {currentResume.previewSnippet}
+          </pre>
+        </div>
+      )}
+
       {/* Rule-Based NLP Parser Pre-Check Card */}
       <div className="cv-card" style={{ padding: '24px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
@@ -238,7 +289,7 @@ export default function Step2Resume({
                 <User size={16} color="#0052cc" /> Contact Identifiers
               </div>
               <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>
-                {extractedData?.contactInfo ? 'Detected' : '3 Detected'}
+                {resumeData?.contactInfo ? 'Document results' : 'No document'}
               </span>
             </div>
             <p style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
@@ -279,7 +330,7 @@ export default function Step2Resume({
             </div>
           </div>
 
-          {/* Seniority & Title Parsing */}
+          {/* Text Extraction Details */}
           <div style={{
             padding: '16px',
             background: '#f8fafc',
@@ -288,21 +339,19 @@ export default function Step2Resume({
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
-                <Briefcase size={16} color="#0052cc" /> Seniority & Title Parsing
+                <Briefcase size={16} color="#0052cc" /> Text Extraction
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0052cc' }}>L4 Lead Pattern</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#0052cc' }}>Document text</span>
             </div>
             <p style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
-              Identifies chronological tenure milestones and position weightings.
+              A short preview of the text extracted from this document.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="pill pill-slate">Lead Developer</span>
-              <span className="pill pill-slate">Software Engineer</span>
-              <span className="pill pill-blue">6.5 Yrs Exp</span>
+              <span className="pill pill-slate">{resumeData ? `${resumeData.previewSnippet?.length || 0} preview characters` : 'Not analyzed'}</span>
             </div>
           </div>
 
-          {/* Degree & Credentials */}
+          {/* Detected Sections */}
           <div style={{
             padding: '16px',
             background: '#f8fafc',
@@ -311,16 +360,19 @@ export default function Step2Resume({
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: '700', color: '#0f172a' }}>
-                <GraduationCap size={16} color="#0052cc" /> Degree & Credentials
+                <GraduationCap size={16} color="#0052cc" /> Resume Sections
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>Validated</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#047857' }}>
+                {presentSections.length} sections detected
+              </span>
             </div>
             <p style={{ fontSize: '0.775rem', color: '#64748b', marginBottom: '10px' }}>
-              Extracts degree level, issuing institution, graduation timeline, and accredited certs.
+              Recognized section headings found in the extracted text.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="pill pill-slate">B.S. Computer Science</span>
-              <span className="pill pill-slate">AWS Solutions Arch</span>
+              {presentSections.length > 0
+                ? presentSections.map((section) => <span key={section} className="pill pill-slate">{section}</span>)
+                : <span className="pill pill-slate">No sections detected</span>}
             </div>
           </div>
 
@@ -329,17 +381,22 @@ export default function Step2Resume({
 
       {/* Continue CTA Button */}
       <div style={{ textAlign: 'center', marginTop: '16px' }}>
+        {analysisError && (
+          <p role="alert" style={{ color: '#b91c1c', marginBottom: '12px', fontSize: '0.875rem' }}>
+            {analysisError}
+          </p>
+        )}
         <button
           type="button"
           onClick={onNext}
+          disabled={!currentResume || uploading || analyzing}
           className="btn-cv-primary"
-          style={{ width: '100%', padding: '14px', fontSize: '1rem' }}
+          style={{ width: '100%', padding: '14px', fontSize: '1rem', opacity: !currentResume || uploading || analyzing ? 0.6 : 1 }}
         >
-          Run Algorithmic Diagnostics <ArrowRight size={18} />
+          {analyzing ? <><Loader2 size={18} className="animate-spin" /> Analyzing document...</> : <>Run Algorithmic Diagnostics <ArrowRight size={18} /></>}
         </button>
       </div>
 
     </div>
   );
 }
-

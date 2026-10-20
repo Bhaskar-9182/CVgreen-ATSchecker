@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Briefcase, Building, Sparkles, UploadCloud, FileText, ArrowRight, Check } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Briefcase, Building, Sparkles, UploadCloud, FileText, ArrowRight, AlertTriangle } from 'lucide-react';
 
 const SAMPLE_JD = `We are looking for a Senior Full-Stack Engineer with 5+ years building distributed cloud applications. You will architect robust microservices using Node.js, TypeScript, and Go, coupled with modern React frontend interfaces. Deep knowledge of PostgreSQL, GraphQL API design, Docker containerization, and AWS serverless infrastructure is essential. You will drive CI/CD pipelines, lead engineering peer reviews, and mentor engineers to maintain high standards of code safety and scalable telemetry.`;
 
@@ -13,7 +13,10 @@ export default function Step1Target({
   onNext 
 }) {
   const [activeTab, setActiveTab] = useState('paste'); // 'paste' | 'upload'
-  const [wordCount, setWordCount] = useState(68);
+  const [wordCount, setWordCount] = useState(0);
+  const [jdFileName, setJdFileName] = useState('');
+  const [jdUploadError, setJdUploadError] = useState(null);
+  const jdFileInputRef = useRef(null);
 
   useEffect(() => {
     if (jobDescription) {
@@ -28,6 +31,34 @@ export default function Step1Target({
     setJobTitle('Senior Full-Stack Engineer');
     setTargetCompany('Stripe');
     setJobDescription(SAMPLE_JD);
+  };
+
+  const handleJobDescriptionUpload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setJdUploadError(null);
+
+    if (!file.name.toLowerCase().endsWith('.txt')) {
+      setJdUploadError('Please upload a plain-text job description (.txt).');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setJdUploadError('Job description files must be smaller than 2 MB.');
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      if (!text.trim()) {
+        setJdUploadError('The selected file does not contain any job description text.');
+        return;
+      }
+      setJobDescription(text);
+      setJdFileName(file.name);
+    } catch {
+      setJdUploadError('Could not read the selected file. Try saving it as UTF-8 plain text.');
+    }
   };
 
   return (
@@ -174,11 +205,47 @@ export default function Step1Target({
             </button>
           </div>
 
+          {activeTab === 'upload' && (
+            <div style={{ marginBottom: '14px' }}>
+              <input
+                ref={jdFileInputRef}
+                type="file"
+                accept=".txt,text/plain"
+                onChange={handleJobDescriptionUpload}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                className="btn-cv-secondary"
+                onClick={() => jdFileInputRef.current?.click()}
+                style={{ padding: '10px 14px' }}
+              >
+                <UploadCloud size={16} /> Choose job description (.txt)
+              </button>
+              {jdFileName && (
+                <span style={{ marginLeft: '10px', color: '#475569', fontSize: '0.8rem' }}>
+                  Loaded: {jdFileName}
+                </span>
+              )}
+              <p style={{ color: '#64748b', fontSize: '0.75rem', margin: '8px 0 0' }}>
+                Upload a UTF-8 plain-text file up to 2 MB. You can review or edit its text below.
+              </p>
+            </div>
+          )}
+
+          {jdUploadError && (
+            <p role="alert" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', fontSize: '0.8rem' }}>
+              <AlertTriangle size={15} /> {jdUploadError}
+            </p>
+          )}
+
           <textarea
             rows={7}
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
-            placeholder="Paste target job requirements and core technical competencies..."
+            placeholder={activeTab === 'upload'
+              ? 'Choose a .txt file above or paste the job description here...'
+              : 'Paste target job requirements and core technical competencies...'}
             style={{
               width: '100%',
               padding: '14px',
@@ -213,28 +280,16 @@ export default function Step1Target({
               Instant Rule Pre-Check
             </span>
             <span className="pill pill-blue">
-              🎯 Target Level: Mid-Senior (5+ yrs)
-            </span>
-            <span className="pill pill-green">
-              ✓ TypeScript
-            </span>
-            <span className="pill pill-green">
-              ✓ React
-            </span>
-            <span className="pill pill-green">
-              ✓ AWS Serverless
-            </span>
-            <span className="pill pill-green">
-              ✓ PostgreSQL
+              Target role: {jobTitle || 'Not provided'}
             </span>
             <span className="pill pill-slate">
-              +7 inferred tokens
+              {wordCount} job-description words ready for matching
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', fontWeight: '700', color: '#065f46' }}>
-            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981' }} />
-            Calibrated
+            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: jobDescription.trim() ? '#10b981' : '#94a3b8' }} />
+            {jobDescription.trim() ? 'Ready to match' : 'Add a job description'}
           </div>
         </div>
       </div>
@@ -264,4 +319,3 @@ export default function Step1Target({
     </div>
   );
 }
-

@@ -28,6 +28,9 @@ public class DocumentParserService {
         if (fileBytes == null || fileBytes.length == 0) {
             throw new IllegalArgumentException("File content is empty");
         }
+        if (fileFormat == null || fileFormat.isBlank()) {
+            throw new IllegalArgumentException("File format is required");
+        }
 
         String normalizedFormat = fileFormat.toLowerCase().replace(".", "").trim();
 
@@ -36,8 +39,7 @@ public class DocumentParserService {
         } else if ("docx".equals(normalizedFormat) || "doc".equals(normalizedFormat)) {
             return extractTextFromDocx(fileBytes);
         } else {
-            // If plain text
-            return new String(fileBytes);
+            throw new IllegalArgumentException("Unsupported document format: " + fileFormat);
         }
     }
 
@@ -48,9 +50,12 @@ public class DocumentParserService {
             }
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
-            String text = stripper.getText(document);
-            logger.info("Successfully extracted {} characters from PDF", text != null ? text.length() : 0);
-            return cleanExtractedText(text);
+            String text = cleanExtractedText(stripper.getText(document));
+            if (text.isBlank()) {
+                throw new IOException("No readable text was found in the PDF. Scanned/image-only PDFs are not supported.");
+            }
+            logger.info("Successfully extracted {} characters from PDF", text.length());
+            return text;
         }
     }
 
@@ -59,8 +64,12 @@ public class DocumentParserService {
              XWPFDocument docx = new XWPFDocument(is);
              XWPFWordExtractor extractor = new XWPFWordExtractor(docx)) {
             String text = extractor.getText();
-            logger.info("Successfully extracted {} characters from DOCX", text != null ? text.length() : 0);
-            return cleanExtractedText(text);
+            String cleanedText = cleanExtractedText(text);
+            if (cleanedText.isBlank()) {
+                throw new IOException("No readable text was found in the DOCX document.");
+            }
+            logger.info("Successfully extracted {} characters from DOCX", cleanedText.length());
+            return cleanedText;
         }
     }
 

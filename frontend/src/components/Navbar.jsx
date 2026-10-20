@@ -10,7 +10,7 @@ export default function Navbar({ currentStep, onStepClick, user, onOpenAuth, act
   ];
 
   return (
-    <div style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 }}>
+    <div className="app-navbar" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 }}>
       {/* Top Header Row */}
       <header style={{
         maxWidth: '1360px',
@@ -108,7 +108,7 @@ export default function Navbar({ currentStep, onStepClick, user, onOpenAuth, act
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={onOpenAuth}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#0f172a', lineHeight: 1.2 }}>
-                  {user.fullName || user.username || 'Kothapalli Bhaskar'}
+                  {user.fullName || user.username || 'Account'}
                 </div>
                 <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
                   Enterprise Tier
@@ -161,13 +161,14 @@ export default function Navbar({ currentStep, onStepClick, user, onOpenAuth, act
         justifyContent: 'space-between',
         borderTop: '1px solid #f1f5f9'
       }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {['Scanner', 'History', 'Saved Resumes', 'Analytics', 'Documentation'].map((tab) => {
+        <div className="app-tabs" style={{ display: 'flex', gap: '8px' }}>
+          {['Scanner', 'History', 'Saved Resumes'].map((tab) => {
             const isTabActive = activeTab === tab;
             return (
               <button
                 key={tab}
                 onClick={() => onTabChange(tab)}
+                className={`app-tab ${isTabActive ? 'active' : ''}`}
                 style={{
                   padding: '10px 16px',
                   fontSize: '0.825rem',

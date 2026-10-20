@@ -10,7 +10,7 @@ export default function BottomNav({ activeNav, onNavChange }) {
   ];
 
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav" aria-label="Primary navigation">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive = activeNav === item.id;
@@ -20,6 +20,7 @@ export default function BottomNav({ activeNav, onNavChange }) {
             type="button"
             onClick={() => onNavChange(item.id)}
             className={`bottom-nav-btn ${isActive ? 'active' : ''}`}
+            aria-current={isActive ? 'page' : undefined}
           >
             <Icon size={18} color={isActive ? '#0052cc' : '#64748b'} />
             <span>{item.label}</span>
@@ -29,4 +30,3 @@ export default function BottomNav({ activeNav, onNavChange }) {
     </nav>
   );
 }
-

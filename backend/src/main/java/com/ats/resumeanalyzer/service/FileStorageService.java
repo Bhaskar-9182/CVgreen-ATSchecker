@@ -12,8 +12,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -71,7 +71,9 @@ public class FileStorageService {
                         .contentType(file.getContentType())
                         .build();
 
-                s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+                try (InputStream inputStream = file.getInputStream()) {
+                    s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(inputStream, file.getSize()));
+                }
                 return new StorageResult("S3", s3Key);
             } catch (Exception e) {
                 logger.warn("AWS S3 upload failed ({}). Falling back to local storage.", e.getMessage());
@@ -85,7 +87,9 @@ public class FileStorageService {
         }
 
         Path targetPath = targetDir.resolve(uniqueFileName);
-        Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
+        try (InputStream inputStream = file.getInputStream()) {
+            Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+        }
         logger.info("Stored file locally at {}", targetPath.toAbsolutePath());
 
         return new StorageResult("LOCAL", targetPath.toString());
@@ -98,7 +102,9 @@ public class FileStorageService {
                         .bucket(bucketName)
                         .key(storagePathOrKey)
                         .build();
-                return s3Client.getObject(getObjectRequest).readAllBytes();
+                try (var inputStream = s3Client.getObject(getObjectRequest)) {
+                    return inputStream.readAllBytes();
+                }
             } catch (Exception e) {
                 logger.error("Failed to load file from AWS S3 key: {}", storagePathOrKey, e);
                 throw new IOException("Could not load file from S3: " + e.getMessage());

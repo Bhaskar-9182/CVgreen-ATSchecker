@@ -2,6 +2,7 @@ package com.ats.resumeanalyzer.controller;
 
 import com.ats.resumeanalyzer.dto.AnalysisResultDto;
 import com.ats.resumeanalyzer.dto.AnalyzeResumeRequest;
+import com.ats.resumeanalyzer.dto.ResumeSummaryDto;
 import com.ats.resumeanalyzer.model.Resume;
 import com.ats.resumeanalyzer.model.User;
 import com.ats.resumeanalyzer.service.ResumeService;
@@ -92,9 +93,17 @@ public class ResumeController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Resume>> getResumes(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userDetails != null ? userService.getByUsername(userDetails.getUsername()) : null;
-        List<Resume> resumes = resumeService.getUserResumes(user);
+    public ResponseEntity<List<ResumeSummaryDto>> getResumes(@AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.getByUsername(userDetails.getUsername());
+        List<ResumeSummaryDto> resumes = resumeService.getUserResumes(user).stream()
+                .map(resume -> new ResumeSummaryDto(
+                        resume.getId(),
+                        resume.getFileName(),
+                        resume.getFileFormat(),
+                        resume.getFileSize(),
+                        resume.getStorageType(),
+                        resume.getUploadedAt()))
+                .toList();
         return ResponseEntity.ok(resumes);
     }
 

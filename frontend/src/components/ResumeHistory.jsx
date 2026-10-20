@@ -1,115 +1,108 @@
 import React from 'react';
-import { History, FileText, Calendar, HardDrive, ArrowRight } from 'lucide-react';
+import { Bookmark, Calendar, FileText, History, Loader2, Search, AlertTriangle, ArrowRight } from 'lucide-react';
 
-export default function ResumeHistory({ resumes, onSelectResume, activeResumeId }) {
-  if (!resumes || resumes.length === 0) {
-    return null;
-  }
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  return (
-    <div className="glass-panel" style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-        <div style={{
-          background: 'rgba(16, 185, 129, 0.15)',
-          padding: '8px',
-          borderRadius: '8px',
-          color: '#34d399'
-        }}>
-          <History size={20} />
-        </div>
-        <div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Your Saved Resumes</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Stored in cloud storage • Click any document to inspect or re-analyze
-          </p>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-        {resumes.map((resume) => {
-          const isActive = activeResumeId === resume.id;
-          return (
-            <div
-              key={resume.id}
-              onClick={() => onSelectResume(resume)}
-              style={{
-                padding: '16px',
-                borderRadius: '12px',
-                background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(15, 23, 42, 0.5)',
-                border: `1px solid ${isActive ? '#6366f1' : 'var(--border)'}`,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: 'rgba(51, 65, 85, 0.4)',
-                  color: '#818cf8',
-                  flexShrink: 0
-                }}>
-                  <FileText size={20} />
-                </div>
-                <div style={{ overflow: 'hidden' }}>
-                  <h4 style={{
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: 'var(--text-main)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
-                  }}>
-                    {resume.fileName}
-                  </h4>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                    <span className="badge badge-info" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                      {resume.fileFormat?.toUpperCase()}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <HardDrive size={11} /> {resume.storageType || 'S3'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingTop: '10px',
-                borderTop: '1px solid rgba(255,255,255,0.05)',
-                fontSize: '0.75rem',
-                color: 'var(--text-dim)'
-              }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Calendar size={12} /> {formatDate(resume.uploadedAt)}
-                </span>
-                <span style={{
-                  color: isActive ? '#818cf8' : 'var(--text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontWeight: '600'
-                }}>
-                  {isActive ? 'Active' : 'Select'} <ArrowRight size={12} />
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+function formatDate(value) {
+  if (!value) return 'Date unavailable';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Date unavailable' : date.toLocaleString();
 }
 
+export default function ResumeHistory({
+  mode,
+  resumes,
+  reports,
+  loading,
+  error,
+  onSelectResume,
+  onSelectReport,
+  onGoToScanner,
+  onSignIn
+}) {
+  const isHistory = mode === 'History';
+  const Icon = isHistory ? History : Bookmark;
+
+  return (
+    <section className="library-page">
+      <header className="library-heading">
+        <div className="library-icon"><Icon size={22} /></div>
+        <div>
+          <p className="library-eyebrow">{isHistory ? 'YOUR ACTIVITY' : 'YOUR LIBRARY'}</p>
+          <h1>{isHistory ? 'Analysis history' : 'Saved resumes'}</h1>
+          <p>{isHistory ? 'Review past resume analyses and open a report.' : 'Resume files you have uploaded are listed here.'}</p>
+        </div>
+      </header>
+
+      {loading && (
+        <div className="library-state" role="status">
+          <Loader2 className="animate-spin" size={20} /> Loading your {isHistory ? 'history' : 'saved resumes'}…
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="library-state library-error" role="alert">
+          <AlertTriangle size={20} />
+          <div>
+            <strong>Could not load your library</strong>
+            <p>{error}</p>
+            {error.startsWith('Sign in') && (
+              <button className="btn-cv-primary" type="button" onClick={onSignIn}>Sign in</button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && resumes.length === 0 && (
+        <div className="library-state library-empty">
+          <Search size={24} />
+          <h2>{isHistory ? 'No resume history yet' : 'No saved resumes yet'}</h2>
+          <p>Upload a resume and run an analysis to see it here.</p>
+          <button className="btn-cv-primary" type="button" onClick={onGoToScanner}>
+            Go to scanner <ArrowRight size={16} />
+          </button>
+        </div>
+      )}
+
+      {!loading && !error && resumes.length > 0 && (
+        <div className="library-grid">
+          {resumes.map((resume) => {
+            const report = reports[resume.id];
+            return (
+              <article className="library-card" key={resume.id}>
+                <div className="library-card-top">
+                  <div className="library-file-icon"><FileText size={20} /></div>
+                  <div className="library-file-name">
+                    <h2 title={resume.fileName}>{resume.fileName}</h2>
+                    <span>{resume.fileFormat?.toUpperCase()} · {resume.storageType || 'Stored'}</span>
+                  </div>
+                  {report && <span className="library-score">{report.overallScore}/100</span>}
+                </div>
+                <div className="library-card-date">
+                  <Calendar size={14} /> Uploaded {formatDate(resume.uploadedAt)}
+                </div>
+                {isHistory ? (
+                  report ? (
+                    <div className="library-report">
+                      <div>
+                        <strong>{report.jobTitle || 'Resume analysis'}</strong>
+                        <span>Analyzed {formatDate(report.analyzedAt)}</span>
+                      </div>
+                      <button type="button" className="btn-cv-secondary" onClick={() => onSelectReport(report)}>
+                        Open report <ArrowRight size={15} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="library-report-empty">No analysis report yet.</div>
+                  )
+                ) : (
+                  <button type="button" className="btn-cv-secondary library-open" onClick={() => onSelectResume(resume)}>
+                    Open resume <ArrowRight size={15} />
+                  </button>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}

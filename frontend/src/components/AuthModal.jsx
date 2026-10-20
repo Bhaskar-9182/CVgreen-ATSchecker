@@ -5,14 +5,13 @@ import {
 } from 'lucide-react';
 import { authApi } from '../services/api';
 
-export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser }) {
-  const [isLogin, setIsLogin] = useState(false);
-  const [fullName, setFullName] = useState(initialUser?.fullName || initialUser?.username || 'Kothapalli Bhaskar');
-  const [email, setEmail] = useState(initialUser?.email || 'bhaskar.24mis7052@vitapstudent.ac.in');
-  const [username, setUsername] = useState(initialUser?.username || 'bhaskar');
-  const [password, setPassword] = useState('uApSZD6c');
+export default function AuthModal({ isOpen, onClose, onAuthSuccess, onSignOut, initialUser }) {
+  const [isLogin, setIsLogin] = useState(true);
+  const [fullName, setFullName] = useState(initialUser?.fullName || initialUser?.username || '');
+  const [email, setEmail] = useState(initialUser?.email || '');
+  const [username, setUsername] = useState(initialUser?.username || '');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -23,47 +22,34 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
     setLoading(true);
     setError(null);
 
-    const enteredName = fullName.trim() || username || (email ? email.split('@')[0] : 'Kothapalli Bhaskar');
+    const enteredName = fullName.trim() || username;
 
     try {
       if (isLogin) {
-        // Try logging in with username or email
-        const userToLogin = username || email.split('@')[0];
-        const data = await authApi.login(userToLogin, password);
-        const userObj = { ...data, fullName: enteredName, username: enteredName };
+        const data = await authApi.login(username, password);
+        const userObj = { ...data, fullName: data.fullName || data.username };
         localStorage.setItem('user', JSON.stringify(userObj));
         onAuthSuccess(userObj);
+        setPassword('');
         onClose();
       } else {
-        const userToRegister = username || email.split('@')[0];
-        await authApi.register(userToRegister, email, password);
-        // Automatically login after register
-        const data = await authApi.login(userToRegister, password);
-        const userObj = { ...data, fullName: enteredName, username: enteredName };
+        await authApi.register(username, email, password);
+        const data = await authApi.login(username, password);
+        const userObj = { ...data, fullName: enteredName };
         localStorage.setItem('user', JSON.stringify(userObj));
         onAuthSuccess(userObj);
+        setPassword('');
         onClose();
       }
     } catch (err) {
-      // Demo fallback or offline simulation with user entered name
-      const simulatedUser = {
-        username: enteredName,
-        fullName: enteredName,
-        email: email,
-        id: 1,
-        roles: ['ROLE_USER']
-      };
-      localStorage.setItem('user', JSON.stringify(simulatedUser));
-      localStorage.setItem('token', 'simulated_jwt_token_sample');
-      onAuthSuccess(simulatedUser);
-      onClose();
+      setError(err.response?.data?.error || err.response?.data?.message || 'Authentication failed. Check your details and try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={{
+    <div className="auth-overlay" style={{
       position: 'fixed',
       inset: 0,
       background: 'rgba(15, 23, 42, 0.45)',
@@ -75,7 +61,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
       padding: '20px',
       overflowY: 'auto'
     }}>
-      <div style={{
+      <div className="auth-panel" style={{
         background: '#ffffff',
         borderRadius: '20px',
         maxWidth: '520px',
@@ -129,12 +115,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
 
         {/* Title */}
         <h2 style={{ fontSize: '1.65rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '6px' }}>
-          Sign in to CVScan AI
+          {initialUser ? 'Your account' : 'Sign in to CVScan AI'}
         </h2>
         <p style={{ fontSize: '0.825rem', color: '#64748b', marginBottom: '22px', lineHeight: '1.4' }}>
-          Deterministic parsing, keyword density calibration, and instant ATS scoring for tech applicants.
+          {initialUser
+            ? `Signed in as ${initialUser.fullName || initialUser.username}.`
+            : 'Deterministic parsing, keyword density calibration, and instant ATS scoring for tech applicants.'}
         </p>
 
+        {initialUser ? (
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="btn-cv-secondary"
+            style={{ width: '100%', padding: '12px', fontSize: '0.925rem' }}
+          >
+            Sign out
+          </button>
+        ) : (
+          <div>
         {/* Switch Tabs */}
         <div style={{
           display: 'grid',
@@ -184,36 +183,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
           </button>
         </div>
 
-        {/* Social / SSO Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-          <button
-            type="button"
-            className="btn-cv-secondary"
-            style={{ padding: '8px 12px', fontSize: '0.825rem' }}
-            onClick={() => {}}
-          >
-            <span style={{ fontWeight: '700', color: '#ea4335' }}>G</span> Google
-          </button>
-          <button
-            type="button"
-            className="btn-cv-secondary"
-            style={{ padding: '8px 12px', fontSize: '0.825rem' }}
-            onClick={() => {}}
-          >
-            <span style={{ fontWeight: '700', color: '#0077b5' }}>in</span> LinkedIn
-          </button>
-        </div>
-
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          margin: '16px 0',
+          margin: '0 0 16px',
           fontSize: '0.75rem',
           color: '#94a3b8'
         }}>
           <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
-          <span>or continue with corporate email</span>
+          <span>{isLogin ? 'Use your account username' : 'Create an account with your email'}</span>
           <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
         </div>
 
@@ -237,7 +216,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           {/* Full Name */}
-          <div>
+          {!isLogin && <div>
             <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
               Full Name
             </label>
@@ -251,7 +230,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
                   setFullName(e.target.value);
                   setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''));
                 }}
-                placeholder="e.g. Kothapalli Bhaskar"
+                placeholder="Your full name"
                 style={{
                   width: '100%',
                   padding: '9px 36px 9px 34px',
@@ -264,21 +243,23 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
               />
               <CheckCircle2 size={16} color="#10b981" style={{ position: 'absolute', right: '12px', top: '11px' }} />
             </div>
-          </div>
+          </div>}
 
-          {/* Work Email */}
+          {/* Username or email */}
           <div>
             <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-              Work Email
+              {isLogin ? 'Username' : 'Work Email'}
             </label>
             <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#64748b', fontSize: '0.9rem' }}>@</span>
+              <span style={{ position: 'absolute', left: '12px', top: '10px', color: '#64748b', fontSize: '0.9rem' }}>
+                {isLogin ? <User size={15} /> : '@'}
+              </span>
               <input
-                type="email"
+                type={isLogin ? 'text' : 'email'}
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="alex.chen@cloudscale.io"
+                value={isLogin ? username : email}
+                onChange={(e) => isLogin ? setUsername(e.target.value) : setEmail(e.target.value)}
+                placeholder={isLogin ? 'Your account username' : 'you@example.com'}
                 style={{
                   width: '100%',
                   padding: '9px 36px 9px 34px',
@@ -299,11 +280,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
               <label style={{ fontSize: '0.775rem', fontWeight: '700', color: '#334155' }}>
                 Password
               </label>
-              {isLogin && (
-                <a href="#forgot" style={{ fontSize: '0.75rem', color: '#0052cc', textDecoration: 'none', fontWeight: '600' }}>
-                  Forgot password?
-                </a>
-              )}
             </div>
             <div style={{ position: 'relative' }}>
               <Lock size={15} style={{ position: 'absolute', left: '12px', top: '12px', color: '#64748b' }} />
@@ -331,20 +307,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </div>
-
-          {/* Remember Workstation Checkbox */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-            <input
-              type="checkbox"
-              id="rememberWorkstation"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              style={{ width: '16px', height: '16px', accentColor: '#0052cc', cursor: 'pointer' }}
-            />
-            <label htmlFor="rememberWorkstation" style={{ fontSize: '0.8rem', color: '#334155', fontWeight: '500', cursor: 'pointer' }}>
-              Remember this workstation (30 days)
-            </label>
           </div>
 
           {/* Submit Button */}
@@ -430,6 +392,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, initialUser 
           <span>🛡 SOC 2 Type II</span>
           <span>🛡 GDPR / CCPA Compliant</span>
         </div>
+          </div>
+        )}
 
       </div>
     </div>

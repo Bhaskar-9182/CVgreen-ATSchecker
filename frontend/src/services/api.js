@@ -2,9 +2,6 @@ import axios from 'axios';
 
 const API = axios.create({
   baseURL: '/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Automatically inject JWT bearer token into headers if available
@@ -54,11 +51,7 @@ export const resumeApi = {
   uploadResume: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await API.post('/resumes/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    const response = await API.post('/resumes/upload', formData);
     return response.data;
   },
   analyzeResume: async (resumeId, jobTitle, jobDescription, targetSkills = []) => {
@@ -103,4 +96,3 @@ export const systemApi = {
 };
 
 export default API;
-

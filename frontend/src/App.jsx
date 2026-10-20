@@ -6,118 +6,153 @@ import Step2Resume from './components/Step2Resume';
 import Step3Diagnostics from './components/Step3Diagnostics';
 import Step4Optimize from './components/Step4Optimize';
 import BottomNav from './components/BottomNav';
+import ResumeHistory from './components/ResumeHistory';
 import { authApi, resumeApi, systemApi } from './services/api';
-
-const DEFAULT_SAMPLE_JD = `We are looking for a Senior Full-Stack Engineer with 5+ years building distributed cloud applications. You will architect robust microservices using Node.js, TypeScript, and Go, coupled with modern React frontend interfaces. Deep knowledge of PostgreSQL, GraphQL API design, Docker containerization, and AWS serverless infrastructure is essential. You will drive CI/CD pipelines, lead engineering peer reviews, and mentor engineers to maintain high standards of code safety and scalable telemetry.`;
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [activeTab, setActiveTab] = useState('Scanner');
   const [activeBottomNav, setActiveBottomNav] = useState('Scanner');
-  const [user, setUser] = useState(authApi.getCurrentUser() || { 
-    username: 'Kothapalli Bhaskar', 
-    fullName: 'Kothapalli Bhaskar', 
-    email: 'bhaskar.24mis7052@vitapstudent.ac.in', 
-    id: 1 
-  });
+  const [user, setUser] = useState(authApi.getCurrentUser());
   const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // Form State
   const [jobTitle, setJobTitle] = useState('Senior Full-Stack Engineer');
   const [targetCompany, setTargetCompany] = useState('Stripe');
-  const [jobDescription, setJobDescription] = useState(DEFAULT_SAMPLE_JD);
+  const [jobDescription, setJobDescription] = useState('');
 
   // Resume State
-  const [currentResume, setCurrentResume] = useState({
-    id: 101,
-    fileName: 'Alex_Morgan_Resume_2025.pdf',
-    fileSize: 145408,
-    fileFormat: 'pdf',
-    storageType: 'S3',
-    previewSnippet: 'Alex Morgan\nSenior Full-Stack & Cloud Systems Engineer\nSan Francisco, CA • alex.m@domain.com • +1 (555) 0192'
-  });
+  const [currentResume, setCurrentResume] = useState(null);
 
   // Diagnostics & Result State
   const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisError, setAnalysisError] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [libraryResumes, setLibraryResumes] = useState([]);
+  const [libraryReports, setLibraryReports] = useState({});
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState(null);
+  const [libraryRefresh, setLibraryRefresh] = useState(0);
 
   useEffect(() => {
-    // Check system health
     systemApi.getHealth().catch(() => {});
+    if (!localStorage.getItem('token')) {
+      setUser(null);
+      return;
+    }
+
+    authApi.getMe()
+      .then((profile) => {
+        if (!profile.authenticated) {
+          authApi.logout();
+          setUser(null);
+          return;
+        }
+
+        setUser((savedUser) => ({
+          ...profile,
+          fullName: savedUser?.fullName || profile.fullName || profile.username
+        }));
+      })
+      .catch(() => {
+        authApi.logout();
+        setUser(null);
+      });
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'History' && activeTab !== 'Saved Resumes') return undefined;
+
+    let cancelled = false;
+    const loadLibrary = async () => {
+      setLibraryLoading(true);
+      setLibraryError(null);
+      try {
+        const resumes = await resumeApi.getResumes();
+        const reports = {};
+        if (activeTab === 'History') {
+          const reportResults = await Promise.all(
+            resumes.map(async (resume) => {
+              try {
+                return [resume.id, await resumeApi.getLatestReport(resume.id)];
+              } catch (error) {
+                if (error.response?.status === 404) return [resume.id, null];
+                throw error;
+              }
+            })
+          );
+          reportResults.forEach(([resumeId, report]) => {
+            if (report) reports[resumeId] = report;
+          });
+        }
+
+        if (!cancelled) {
+          setLibraryResumes(resumes);
+          setLibraryReports(reports);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLibraryError(error.response?.status === 401
+            ? 'Sign in to view resumes and analysis reports saved to your account.'
+            : error.response?.data?.error || 'Please check your connection and try again.');
+        }
+      } finally {
+        if (!cancelled) setLibraryLoading(false);
+      }
+    };
+
+    loadLibrary();
+    return () => { cancelled = true; };
+  }, [activeTab, libraryRefresh]);
 
   const handleStepClick = (stepNum) => {
     setCurrentStep(stepNum);
+    setActiveTab('Scanner');
+    setActiveBottomNav('Scanner');
   };
 
   const handleResumeUploaded = (res) => {
+    if (!res) {
+      setCurrentResume(null);
+      setAnalysisResult(null);
+      setAnalysisError(null);
+      return;
+    }
+
     const resumeObj = {
-      id: res.resumeId || 101,
-      fileName: res.fileName || 'Alex_Morgan_Resume_2025.pdf',
-      fileSize: res.fileSize || 145408,
-      fileFormat: res.fileFormat || 'pdf',
-      storageType: res.storageType || 'S3',
-      uploadedAt: res.uploadedAt || new Date().toISOString(),
-      previewSnippet: res.previewSnippet
+      id: res.resumeId,
+      fileName: res.fileName,
+      fileSize: res.fileSize,
+      fileFormat: res.fileFormat,
+      storageType: res.storageType,
+      uploadedAt: res.uploadedAt,
+      previewSnippet: res.previewSnippet,
+      contactInfo: res.contactInfo,
+      extractedSkills: res.extractedSkills,
+      sections: res.sections
     };
     setCurrentResume(resumeObj);
+    setAnalysisResult(null);
+    setAnalysisError(null);
   };
 
   const handleRunAnalysis = async () => {
-    if (currentResume?.id) {
-      try {
-        const res = await resumeApi.analyzeResume(currentResume.id, jobTitle, jobDescription);
-        setAnalysisResult(res);
-        setCurrentStep(3);
-        return;
-      } catch (err) {
-        console.warn('Backend analyze API call failed, generating calibrated result matching UI specifications:', err);
-      }
+    if (!currentResume?.id) {
+      setAnalysisError('Upload a resume successfully before running diagnostics.');
+      return;
     }
 
-    // Default calibrated diagnostics matching Screenshot 4 & 5
-    const calibratedResult = {
-      reportId: 501,
-      resumeId: currentResume?.id || 101,
-      fileName: currentResume?.fileName || 'Alex_Morgan_Resume_2025.pdf',
-      jobTitle: jobTitle || 'Senior Full-Stack Engineer',
-      overallScore: 78,
-      skillMatchScore: 74,
-      sectionScore: 100,
-      keywordFrequencyScore: 80,
-      formattingScore: 100,
-      wordCount: 542,
-      matchedSkills: ['React', 'TypeScript', 'Node.js', 'REST APIs', 'Git', 'PostgreSQL', 'Tailwind CSS'],
-      missingSkills: ['Docker', 'AWS EC2', 'GraphQL', 'Redis', 'CI/CD Pipeline'],
-      presentSections: ['Contact Information', 'Summary', 'Work Experience', 'Education', 'Skills', 'Projects'],
-      missingSections: [],
-      contactInfo: {
-        candidateName: 'Alex Morgan',
-        email: 'alex.morgan@techmail.io',
-        phone: '+1 (555) 234-5678',
-        linkedInUrl: 'linkedin.com/in/alexmorgan-dev',
-        gitHubUrl: 'github.com/alexmorgan-code'
-      },
-      careerProgression: [
-        { title: 'Senior Software Engineer', description: 'Production Full-Stack Architecture', duration: '3 yrs' },
-        { title: 'Full-Stack Developer', description: 'Cloud Client Interfaces & Data APIs', duration: '2 yrs' },
-        { title: 'Software Engineering Intern', description: 'API Integration & Automated Testing', duration: '6 mos' }
-      ],
-      credentials: ['B.S. Computer Science', 'AWS Solutions Arch'],
-      seniorityLevel: 'L4 Lead Pattern (5.5 Yrs Total)',
-      totalExperienceYears: 5.5,
-      optimizedScore: 94,
-      optimizedMatchCount: 19,
-      targetKeywordTotal: 20,
-      readabilityIndex: '9.4/10',
-      recommendations: [
-        'Add missing key skills requested by the job description: Docker, AWS EC2, GraphQL, Redis, CI/CD Pipeline.',
-        'Convert passive achievement bullet points into quantifiable Google-style XYZ metrics (e.g. -34% latency).',
-        'Standardize section titles to ensure 100% single-pass parsing across Workday and Taleo ATS.'
-      ]
-    };
-
-    setAnalysisResult(calibratedResult);
-    setCurrentStep(3);
+    setAnalyzing(true);
+    setAnalysisError(null);
+    try {
+      const result = await resumeApi.analyzeResume(currentResume.id, jobTitle, jobDescription);
+      setAnalysisResult(result);
+      setCurrentStep(3);
+    } catch (err) {
+      setAnalysisError(err.response?.data?.error || 'Analysis failed. Please check the backend and try again.');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const handleRestart = () => {
@@ -138,8 +173,54 @@ export default function App() {
     }
   };
 
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setActiveBottomNav(tab === 'Saved Resumes' ? 'Saved' : tab);
+  };
+
+  const handleSignOut = () => {
+    authApi.logout();
+    setUser(null);
+    setCurrentResume(null);
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setLibraryResumes([]);
+    setLibraryReports({});
+    setActiveTab('Scanner');
+    setActiveBottomNav('Scanner');
+    setCurrentStep(1);
+    setIsAuthOpen(false);
+  };
+
+  const handleSelectSavedResume = (resume) => {
+    setCurrentResume({
+      id: resume.id,
+      fileName: resume.fileName,
+      fileSize: resume.fileSize,
+      fileFormat: resume.fileFormat,
+      storageType: resume.storageType,
+      uploadedAt: resume.uploadedAt
+    });
+    setAnalysisResult(null);
+    setAnalysisError(null);
+    setCurrentStep(2);
+    handleTabChange('Scanner');
+  };
+
+  const handleSelectReport = (report) => {
+    setAnalysisResult(report);
+    setCurrentStep(3);
+    handleTabChange('Scanner');
+  };
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', flexDirection: 'column' }}>
+    <div
+      className="app-shell"
+      onPointerMove={(event) => {
+        event.currentTarget.style.setProperty('--pointer-x', `${event.clientX}px`);
+        event.currentTarget.style.setProperty('--pointer-y', `${event.clientY}px`);
+      }}
+    >
       
       {/* Top Header & Navigation */}
       <Navbar
@@ -148,12 +229,26 @@ export default function App() {
         user={user}
         onOpenAuth={() => setIsAuthOpen(true)}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
 
       {/* Main View Container */}
       <main style={{ flex: 1, padding: '24px 24px 80px', maxWidth: '1360px', width: '100%', margin: '0 auto' }}>
         
+        {activeTab === 'History' || activeTab === 'Saved Resumes' ? (
+          <ResumeHistory
+            mode={activeTab}
+            resumes={libraryResumes}
+            reports={libraryReports}
+            loading={libraryLoading}
+            error={libraryError}
+            onSelectResume={handleSelectSavedResume}
+            onSelectReport={handleSelectReport}
+            onGoToScanner={() => handleTabChange('Scanner')}
+            onSignIn={() => setIsAuthOpen(true)}
+          />
+        ) : (
+          <>
         {/* Step 1: Target Job */}
         {currentStep === 1 && (
           <Step1Target
@@ -173,8 +268,8 @@ export default function App() {
             currentResume={currentResume}
             onResumeUploaded={handleResumeUploaded}
             onNext={handleRunAnalysis}
-            jobTitle={jobTitle}
-            jobDescription={jobDescription}
+            analysisError={analysisError}
+            analyzing={analyzing}
           />
         )}
 
@@ -193,6 +288,8 @@ export default function App() {
             onRestart={handleRestart}
           />
         )}
+          </>
+        )}
 
       </main>
 
@@ -209,6 +306,9 @@ export default function App() {
         onClose={() => setIsAuthOpen(false)}
         onAuthSuccess={(u) => {
           setUser(u);
+          if (activeTab === 'History' || activeTab === 'Saved Resumes') {
+            setLibraryRefresh((refresh) => refresh + 1);
+          }
           if (analysisResult) {
             setAnalysisResult(prev => prev ? {
               ...prev,
@@ -219,6 +319,7 @@ export default function App() {
             } : null);
           }
         }}
+        onSignOut={handleSignOut}
       />
 
     </div>
