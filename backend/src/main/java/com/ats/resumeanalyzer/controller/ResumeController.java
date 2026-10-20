@@ -6,6 +6,8 @@ import com.ats.resumeanalyzer.model.Resume;
 import com.ats.resumeanalyzer.model.User;
 import com.ats.resumeanalyzer.service.ResumeService;
 import com.ats.resumeanalyzer.service.UserService;
+import com.ats.resumeanalyzer.service.RegexExtractionService;
+import com.ats.resumeanalyzer.service.AtsScoringEngineService;
 import jakarta.validation.Valid;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
