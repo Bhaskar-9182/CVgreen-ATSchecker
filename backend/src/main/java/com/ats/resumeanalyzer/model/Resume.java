@@ -25,8 +25,7 @@ public class Resume {
     @Column(nullable = false, length = 500)
     private String storagePathOrKey;
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String rawExtractedText;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -26,7 +26,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/resumes")
-@CrossOrigin(origins = "*", maxAge = 3600)
 public class ResumeController {
 
     private final ResumeService resumeService;
@@ -48,7 +47,7 @@ public class ResumeController {
     public ResponseEntity<?> uploadResume(@RequestParam("file") MultipartFile file,
                                           @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            User user = userDetails != null ? userService.getByUsername(userDetails.getUsername()) : null;
+            User user = userService.getByUsername(userDetails.getUsername());
             Resume resume = resumeService.uploadResume(file, user);
             String rawText = resume.getRawExtractedText();
 
@@ -81,12 +80,14 @@ public class ResumeController {
 
     @PostMapping("/{id}/analyze")
     public ResponseEntity<?> analyzeResume(@PathVariable("id") Long resumeId,
-                                           @Valid @RequestBody AnalyzeResumeRequest request) {
+                                           @Valid @RequestBody AnalyzeResumeRequest request,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            AnalysisResultDto result = resumeService.analyzeResume(resumeId, request);
+            User user = userService.getByUsername(userDetails.getUsername());
+            AnalysisResultDto result = resumeService.analyzeResume(resumeId, request, user);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", "Analysis failed: " + e.getMessage()));
         }
@@ -108,9 +109,11 @@ public class ResumeController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> getResume(@PathVariable("id") Long resumeId) {
+    public ResponseEntity<?> getResume(@PathVariable("id") Long resumeId,
+                                       @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Resume resume = resumeService.getResumeById(resumeId);
+            User user = userService.getByUsername(userDetails.getUsername());
+            Resume resume = resumeService.getResumeById(resumeId, user);
             return ResponseEntity.ok(resume);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -118,8 +121,15 @@ public class ResumeController {
     }
 
     @GetMapping("/{id}/latest-report")
-    public ResponseEntity<?> getLatestReport(@PathVariable("id") Long resumeId) {
-        AnalysisResultDto report = resumeService.getLatestAnalysisForResume(resumeId);
+    public ResponseEntity<?> getLatestReport(@PathVariable("id") Long resumeId,
+                                             @AuthenticationPrincipal UserDetails userDetails) {
+        User user = userService.getByUsername(userDetails.getUsername());
+        AnalysisResultDto report;
+        try {
+            report = resumeService.getLatestAnalysisForResume(resumeId, user);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
         if (report == null) {
             return ResponseEntity.notFound().build();
         }
@@ -127,9 +137,11 @@ public class ResumeController {
     }
 
     @GetMapping("/reports/{reportId}")
-    public ResponseEntity<?> getReportById(@PathVariable("reportId") Long reportId) {
+    public ResponseEntity<?> getReportById(@PathVariable("reportId") Long reportId,
+                                           @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            AnalysisResultDto report = resumeService.getAnalysisReport(reportId);
+            User user = userService.getByUsername(userDetails.getUsername());
+            AnalysisResultDto report = resumeService.getAnalysisReport(reportId, user);
             return ResponseEntity.ok(report);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -137,10 +149,12 @@ public class ResumeController {
     }
 
     @GetMapping("/{id}/download")
-    public ResponseEntity<?> downloadResume(@PathVariable("id") Long resumeId) {
+    public ResponseEntity<?> downloadResume(@PathVariable("id") Long resumeId,
+                                            @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Resume resume = resumeService.getResumeById(resumeId);
-            byte[] data = resumeService.downloadResumeFile(resumeId);
+            User user = userService.getByUsername(userDetails.getUsername());
+            Resume resume = resumeService.getResumeById(resumeId, user);
+            byte[] data = resumeService.downloadResumeFile(resumeId, user);
 
             String mediaType = "application/pdf";
             if ("docx".equalsIgnoreCase(resume.getFileFormat())) {

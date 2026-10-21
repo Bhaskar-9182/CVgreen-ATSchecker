@@ -80,9 +80,8 @@ public class ResumeService {
     }
 
     @Transactional
-    public AnalysisResultDto analyzeResume(Long resumeId, AnalyzeResumeRequest request) {
-        Resume resume = resumeRepository.findById(resumeId)
-                .orElseThrow(() -> new IllegalArgumentException("Resume not found with ID: " + resumeId));
+    public AnalysisResultDto analyzeResume(Long resumeId, AnalyzeResumeRequest request, User user) {
+        Resume resume = getOwnedResume(resumeId, user);
 
         // Deterministic analysis without LLMs
         AnalysisResultDto result = atsScoringEngineService.analyze(
@@ -126,19 +125,15 @@ public class ResumeService {
     }
 
     public List<Resume> getUserResumes(User user) {
-        if (user == null) {
-            return resumeRepository.findAllByOrderByUploadedAtDesc();
-        }
         return resumeRepository.findByUserOrderByUploadedAtDesc(user);
     }
 
-    public Resume getResumeById(Long id) {
-        return resumeRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Resume not found with ID: " + id));
+    public Resume getResumeById(Long id, User user) {
+        return getOwnedResume(id, user);
     }
 
-    public AnalysisResultDto getLatestAnalysisForResume(Long resumeId) {
-        Resume resume = getResumeById(resumeId);
+    public AnalysisResultDto getLatestAnalysisForResume(Long resumeId, User user) {
+        Resume resume = getOwnedResume(resumeId, user);
         AnalysisReport report = analysisReportRepository.findTopByResumeOrderByAnalyzedAtDesc(resume)
                 .orElse(null);
 
@@ -149,15 +144,20 @@ public class ResumeService {
         return mapToDto(report);
     }
 
-    public AnalysisResultDto getAnalysisReport(Long reportId) {
-        AnalysisReport report = analysisReportRepository.findById(reportId)
+    public AnalysisResultDto getAnalysisReport(Long reportId, User user) {
+        AnalysisReport report = analysisReportRepository.findByIdAndResume_User_Username(reportId, user.getUsername())
                 .orElseThrow(() -> new IllegalArgumentException("Analysis report not found with ID: " + reportId));
         return mapToDto(report);
     }
 
-    public byte[] downloadResumeFile(Long resumeId) throws IOException {
-        Resume resume = getResumeById(resumeId);
+    public byte[] downloadResumeFile(Long resumeId, User user) throws IOException {
+        Resume resume = getOwnedResume(resumeId, user);
         return fileStorageService.loadFileBytes(resume.getStorageType(), resume.getStoragePathOrKey());
+    }
+
+    private Resume getOwnedResume(Long resumeId, User user) {
+        return resumeRepository.findByIdAndUser_Username(resumeId, user.getUsername())
+                .orElseThrow(() -> new IllegalArgumentException("Resume not found with ID: " + resumeId));
     }
 
     private AnalysisResultDto mapToDto(AnalysisReport report) {

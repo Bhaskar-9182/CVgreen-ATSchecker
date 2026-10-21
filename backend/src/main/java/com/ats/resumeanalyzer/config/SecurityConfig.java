@@ -2,6 +2,7 @@ package com.ats.resumeanalyzer.config;
 
 import com.ats.resumeanalyzer.security.JwtAuthenticationEntryPoint;
 import com.ats.resumeanalyzer.security.JwtAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -31,11 +32,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationEntryPoint unauthorizedHandler;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final List<String> allowedOrigins;
 
     public SecurityConfig(JwtAuthenticationEntryPoint unauthorizedHandler,
-                          JwtAuthenticationFilter jwtAuthenticationFilter) {
+                          JwtAuthenticationFilter jwtAuthenticationFilter,
+                          @Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
         this.unauthorizedHandler = unauthorizedHandler;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
     }
 
     @Bean
@@ -51,11 +58,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"));
         configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -75,11 +81,7 @@ public class SecurityConfig {
                                 "/api/auth/**",
                                 "/api/health",
                                 "/h2-console/**",
-                                "/error",
-                                "/api/resumes/upload",
-                                "/api/resumes/*/analyze",
-                                "/api/resumes/*/latest-report",
-                                "/api/resumes/*/download"
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );

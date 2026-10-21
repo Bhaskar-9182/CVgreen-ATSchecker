@@ -17,8 +17,7 @@ public class AnalysisReport {
 
     private String jobTitle;
 
-    @Lob
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String jobDescription;
 
     // ATS Composite and Component Scores (0 to 100)
@@ -31,27 +30,21 @@ public class AnalysisReport {
     private int wordCount;
 
     // Stored as JSON strings or comma-separated lists
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String matchedSkills;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String missingSkills;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String presentSections;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String missingSections;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String contactInfoJson;
 
-    @Lob
     @Column(columnDefinition = "TEXT")
     private String recommendationsJson;
 

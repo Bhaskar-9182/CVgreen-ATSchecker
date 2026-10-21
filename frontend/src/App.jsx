@@ -149,7 +149,9 @@ export default function App() {
       setAnalysisResult(result);
       setCurrentStep(3);
     } catch (err) {
-      setAnalysisError(err.response?.data?.error || 'Analysis failed. Please check the backend and try again.');
+      setAnalysisError(err.response?.status === 401
+        ? 'Your session expired. Sign in again before analyzing this resume.'
+        : err.response?.data?.error || 'Analysis failed. Please check the backend and try again.');
     } finally {
       setAnalyzing(false);
     }
@@ -270,6 +272,7 @@ export default function App() {
             onNext={handleRunAnalysis}
             analysisError={analysisError}
             analyzing={analyzing}
+            onAuthRequired={() => setIsAuthOpen(true)}
           />
         )}
 

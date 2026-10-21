@@ -50,6 +50,11 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- In-memory H2 fallback for seamless local standalone testing -->
         <dependency>
             <groupId>com.h2database</groupId>

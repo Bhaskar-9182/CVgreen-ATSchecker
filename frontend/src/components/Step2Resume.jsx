@@ -10,7 +10,8 @@ export default function Step2Resume({
   onResumeUploaded, 
   onNext, 
   analysisError,
-  analyzing
+  analyzing,
+  onAuthRequired
 }) {
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -45,7 +46,12 @@ export default function Step2Resume({
       onResumeUploaded(response);
     } catch (err) {
       console.error('Upload error:', err);
-      setError(err.response?.data?.error || 'Upload failed. Please check the document and ensure the backend is running.');
+      if (err.response?.status === 401) {
+        setError('Sign in before uploading a resume. After signing in, select the file again.');
+        onAuthRequired?.();
+      } else {
+        setError(err.response?.data?.error || 'Upload failed. Please check the document and ensure the backend is running.');
+      }
     } finally {
       setUploading(false);
     }

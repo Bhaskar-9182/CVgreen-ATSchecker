@@ -92,6 +92,8 @@ The REST API will start at **http://localhost:8080**.
 - Health Check: `http://localhost:8080/api/health`
 - H2 Console: `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:resumedb`, user: `sa`, password: empty)
 
+To enable the H2 console locally, set `H2_CONSOLE_ENABLED=true` before starting the backend. It is disabled by default.
+
 To point to your MySQL instance in production, set:
 ```powershell
 $env:SPRING_DATASOURCE_URL="jdbc:mysql://localhost:3306/resume_analyzer_db?createDatabaseIfNotExist=true"
@@ -122,3 +124,40 @@ Open **http://localhost:5173** in your browser.
 | `GET` | `/api/resumes/{id}/latest-report` | Authenticated | Get latest ATS report for resume |
 | `GET` | `/api/resumes/{id}/download` | Authenticated | Download original resume file |
 
+---
+
+## Temporary zero-cost demo deployment on Render
+
+This setup is intended for a short demo, not production. Render's free web services can sleep when idle, and its free PostgreSQL database expires 30 days after creation. Confirm Render's current limits before proceeding; do not rely on the free database for data you cannot lose. See [Render's free instance documentation](https://render.com/docs/free).
+
+### Deploy the backend
+
+1. Push this repository to GitHub and create a Render account.
+2. In Render, create a **PostgreSQL** database using the Free plan. Create it only when ready to start the 30-day period.
+   Choose the same Render region for the database and backend service.
+3. Copy the database's internal host, port, database name, username, and password from its connection details.
+4. Create a **Web Service** from this repository using the Docker runtime. Set the Dockerfile path to `backend/Dockerfile` and the Docker build context to `backend`.
+5. Add these backend environment variables in Render. Use the internal database host and credentials; never commit secret values:
+
+   ```text
+   SPRING_DATASOURCE_URL=jdbc:postgresql://<internal-host>:<port>/<database-name>
+   SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+   SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+   APP_JWT_SECRET=<a newly generated random secret of at least 32 characters>
+   APP_JWT_EXPIRATION_MS=86400000
+   ```
+
+6. Deploy and verify `https://<backend-service>.onrender.com/api/health` returns `"status":"UP"`.
+
+### Deploy the frontend
+
+1. Create a **Static Site** in Render from the same GitHub repository, with the root directory `frontend`.
+2. Set the build command to `npm ci && npm run build` and the publish directory to `dist`.
+3. Add the environment variable `VITE_API_BASE_URL=https://<backend-service>.onrender.com` (omit the `/api` suffix), then deploy.
+4. After Render assigns the frontend URL, set the backend's `CORS_ALLOWED_ORIGINS` to that exact URL, redeploy the backend, and test registration, login, resume upload, analysis, and History.
+
+All resume APIs require authentication and only allow the owning account to read or analyze a resume. Sign in before uploading.
+
+### Resume file storage on Render
+
+Render does not receive the EC2 IAM role created in AWS. Without AWS credentials, the application falls back to the Render service's local filesystem, which is ephemeral and may not retain original files across restarts. For reliable resume downloads, configure S3 using a dedicated AWS IAM identity restricted to the bucket's `resumes/*` objects, and store its access key and secret as Render environment secrets (`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`). Also set `AWS_S3_BUCKET_NAME` and `AWS_REGION`. Never put those credentials in Git. S3 usage may incur AWS charges, so check billing and pricing before enabling it.

@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface AnalysisReportRepository extends JpaRepository<AnalysisReport, Long> {
     List<AnalysisReport> findByResumeOrderByAnalyzedAtDesc(Resume resume);
     Optional<AnalysisReport> findTopByResumeOrderByAnalyzedAtDesc(Resume resume);
-    List<AnalysisReport> findAllByOrderByAnalyzedAtDesc();
+    Optional<AnalysisReport> findByIdAndResume_User_Username(Long id, String username);
 }
